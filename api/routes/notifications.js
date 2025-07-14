@@ -13,7 +13,7 @@ const { getCollection } = require('../config/database');
  * @desc Register a new push notification token
  * @access Public - Consider using auth for production
  */
-router.post('/-token', async (req, res) => {
+router.post('/register-token', async (req, res) => {
   try {
     const { token } = req.body;
     
@@ -121,10 +121,10 @@ router.delete('/remove-token', async (req, res) => {
 
 /**
  * @route GET /api/notifications/tokens
- * @desc Get all registered push tokens (protected route)
+ * @desc Get all registered push tokens
  * @access Private
  */
-router.get('/tokens', authMiddleware, async (req, res) => {
+router.get('/tokens', async (req, res) => {
   try {
     // Get tokens collection
     const tokensCollection = await getCollection('push_tokens');
@@ -146,6 +146,23 @@ router.get('/tokens', authMiddleware, async (req, res) => {
       error: error.message 
     });
   }
+});
+
+/**
+ * @route GET /api/notifications
+ * @desc Get notification status and information
+ * @access Public
+ */
+router.get('/', async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: 'Notifications API is working',
+    endpoints: {
+      registerToken: '/notifications/register-token',
+      removeToken: '/notifications/remove-token',
+      getTokens: '/notifications/tokens (protected)'
+    }
+  });
 });
 
 module.exports = router;

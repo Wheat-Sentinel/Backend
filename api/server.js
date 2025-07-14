@@ -85,7 +85,7 @@ app.get('/', (req, res) => {
       notifications: {
         registerToken: "/notifications/register-token",
         removeToken: "/notifications/remove-token",
-        listTokens: "/notifications/tokens (requires authentication)"
+        listTokens: "/notifications/tokens"
       }
     }
   });
@@ -100,6 +100,13 @@ const startServer = async () => {
       console.log("Database connection successful at startup");
     } catch (dbError) {
       console.error("Warning: Could not connect to database at startup:", dbError.message);
+      // Log more detailed error information
+      if (dbError.stack) {
+        console.error("Database connection error stack:", dbError.stack);
+      }
+      if (dbError.code) {
+        console.error("MongoDB error code:", dbError.code);
+      }
       console.log("Server will start anyway and attempt to connect when needed");
     }
     
@@ -108,9 +115,11 @@ const startServer = async () => {
       console.log(`Starting Wheat Disease Detection API server on port ${PORT}...`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`Database: ${process.env.DATABASE_NAME || 'wheat_disease_detection'}`);
+      console.log(`MongoDB URI configured: ${process.env.MONGO_URI ? 'Yes' : 'No'}`);
     });
   } catch (error) {
     console.error(`Error starting server: ${error}`);
+    console.error(error.stack);
   }
 };
 

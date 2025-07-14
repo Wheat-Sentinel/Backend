@@ -13,7 +13,7 @@ class Detection {
   static async create(detectionData) {
     try {
       // Check for required fields
-      const requiredFields = ['disease', 'confidence', 'timestamp', 'zone_id', 'device_id', 'image_url'];
+      const requiredFields = ['disease', 'confidence', 'timestamp', 'zone_id', 'device_id', 'image_url',"latitude", "longitude"];
       for (const field of requiredFields) {
         if (!detectionData[field]) {
           throw new Error(`Missing required field: ${field}`);
@@ -30,7 +30,9 @@ class Detection {
         zone_id: detectionData.zone_id,
         device_id: detectionData.device_id,
         image_url: detectionData.image_url,
-        created_at: new Date()
+        created_at: new Date(),
+        latitude: detectionData.latitude,
+        longitude: detectionData.longitude,
       };
       
       // Insert into database
