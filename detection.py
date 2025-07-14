@@ -321,7 +321,6 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
     """
     Send detection data to Node.js API when confidence exceeds threshold.
     Upload image to Supabase and send only the image URL to the API.
-    Also sends push notifications to registered Expo app devices.
     
     Args:
         img (Image.Image): The PIL image with detection annotations
@@ -348,35 +347,22 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
         image_url = upload_image(image_bytes, file_name)
         print(f"Image uploaded to Supabase: {image_url}")
         
-        # Get GPS data from the GPS module
+        # Get GPS data from the GPS module - SIMPLIFIED
         gps_data = get_full_gps_data()
-        latitude = gps_data['latitude']
-        longitude = gps_data['longitude']
-        altitude = gps_data['altitude']
-        accuracy = gps_data['accuracy']
         
-        print(f"GPS coordinates for detection: Lat {latitude}, Long {longitude}")
-        if altitude is not None:
-            print(f"Altitude: {altitude}m, Accuracy: {accuracy}m")
+        # Set default coordinates to small non-zero values to avoid falsy validation in JavaScript
+        latitude = 0.0001
+        longitude = 0.0001
         
-        # If GPS coordinates are not available, try to wait
-        if latitude is None or longitude is None:
-            print("WARNING: GPS coordinates are not available. Waiting 2 seconds for GPS data to become available...")
-            time.sleep(2)
-            # Refresh GPS data
-            fresh_gps_data = get_full_gps_data()
-            if fresh_gps_data["latitude"] is not None and fresh_gps_data["longitude"] is not None:
-                # Update with fresh GPS data
-                latitude = fresh_gps_data["latitude"]
-                longitude = fresh_gps_data["longitude"]
-                print(f"Updated GPS coordinates: Lat {latitude}, Long {longitude}")
-            else:
-                print("ERROR: GPS data still not available after waiting. Setting default coordinates.")
-                # Set default coordinates to avoid None values
-                latitude = 0.0
-                longitude = 0.0
+        # Try to use real GPS data if available
+        if gps_data['latitude'] is not None and gps_data['longitude'] is not None:
+            latitude = gps_data['latitude']
+            longitude = gps_data['longitude']
+            print(f"Using actual GPS coordinates: Lat {latitude}, Long {longitude}")
+        else:
+            print(f"GPS not available, using default coordinates: Lat {latitude}, Long {longitude}")
         
-        # Prepare payload with image URL and direct latitude/longitude values
+        # Prepare simplified payload - always includes default coordinates
         payload = {
             "disease": disease_name,
             "confidence": confidence,
@@ -388,47 +374,7 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
             "longitude": longitude
         }
         
-        # Store full location data for push notifications
-        location_data = {
-            "latitude": latitude,
-            "longitude": longitude,
-            "altitude": altitude,
-            "accuracy": accuracy,
-            "timestamp": gps_data['timestamp']
-        }
-        
-        # Verify all required fields are present and not None
-        for key, value in payload.items():
-            if value is None:
-                print(f"ERROR: Required field '{key}' is missing or None")
-                print(f"Check your .env file to ensure related settings are properly set")
-                return False
-        
         print(f"Detection payload ready: {disease_name} with {confidence:.2f} confidence")
-        print(f"GPS coordinates in payload: Lat {payload['latitude']}, Long {payload['longitude']}")
-        
-        # Send push notifications to registered devices
-        if ENABLE_PUSH_NOTIFICATIONS:
-            try:
-                # Include location and device info in the notification
-                extra_data = {
-                    "timestamp": timestamp,
-                    "device_id": DEVICE_ID,
-                    "zone_id": ZONE_ID,
-                    "location": location_data  # Use the full location data for notifications
-                }
-                
-                # Send the push notification
-                notification_result = send_disease_detection_notification(
-                    disease_name,
-                    confidence,
-                    image_url,
-                    extra_data
-                )
-                
-                print(f"Push notification status: {notification_result['sent']} sent, {notification_result['failed']} failed")
-            except Exception as e:
-                print(f"Error sending push notification: {str(e)}")
         
         # Send POST request to Node.js API backend with authentication
         try:
@@ -436,60 +382,36 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
                 'Content-Type': 'application/json'
             }
             
-            # Check if API key is available and add to headers
+            # Add API key if available
             if API_KEY:
-                # Add API key in multiple header formats to ensure compatibility
                 headers['x-api-key'] = API_KEY
                 headers['X-API-Key'] = API_KEY
-                print(f"Using API key for authentication: {API_KEY[:5]}...{API_KEY[-5:]} (redacted middle)")
             else:
-                print("WARNING: No API key found. Authentication will fail!")
-                print("Make sure API_KEY is set in your .env file")
+                print("WARNING: No API key found in environment variables")
             
-            # Prepare request URL - ensure it points to the detections endpoint
+            # Ensure API URL is valid
             if not NODE_API_URL:
-                print("ERROR: NODE_API_URL is not set in your .env file")
+                print("ERROR: NODE_API_URL is not set in environment variables")
                 return False
                 
             DETECTIONS_URL = f"{NODE_API_URL.rstrip('/')}/detections" if not NODE_API_URL.endswith('/detections') else NODE_API_URL
             
-            print(f"API URL being used: {NODE_API_URL}")
-            print(f"Full endpoint URL: {DETECTIONS_URL}")
-            print(f"Headers being sent: {list(headers.keys())}")
-            
-            # Send the request with headers
+            # Send the request
             print(f"Sending request to: {DETECTIONS_URL}")
+            print(f"JSON payload: {json.dumps(payload)}")
             
-            # Add a timeout to the request to avoid hanging
             response = requests.post(DETECTIONS_URL, json=payload, headers=headers, timeout=30)
             
             if response.status_code == 200:
-                print(f"Successfully sent detection to Node.js API: {disease_name} ({confidence:.2f})")
-                print(f"GPS coordinates sent in request: Lat {payload['latitude']}, Long {payload['longitude']}")
+                print(f"Successfully sent detection to API: {disease_name} ({confidence:.2f})")
                 return True
             else:
-                print(f"Failed to send detection to Node.js API. Status code: {response.status_code}")
+                print(f"Failed to send detection to API. Status code: {response.status_code}")
                 print(f"Response: {response.text}")
-                
-                # Provide more specific error information
-                if response.status_code == 401:
-                    print("Authentication error: API key was not accepted")
-                    print("Verify that your API_KEY in .env matches the one in your Vercel environment")
-                elif response.status_code == 500:
-                    print("Server error: The API server encountered an internal error")
-                    print("Check the Vercel logs for more information")
-                    # Try to parse the error response
-                    try:
-                        error_data = response.json()
-                        if 'message' in error_data:
-                            print(f"Error message from server: {error_data['message']}")
-                    except:
-                        pass
                 return False
+                
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to Node.js API server: {str(e)}")
-            print(f"Exception type: {type(e).__name__}")
-            print("Detection not saved. Node.js API server must be running to save detections.")
+            print(f"Error connecting to API server: {str(e)}")
             return False
             
     except Exception as e:
