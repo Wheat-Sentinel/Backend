@@ -19,6 +19,7 @@ try {
 // Import routes
 const detectionRoutes = require('./routes/detections');
 const authRoutes = require('./routes/auth');
+const notificationRoutes = require('./routes/notifications');
 
 // Initialize Express app
 const app = express();
@@ -62,9 +63,13 @@ const apiKeyAuth = (req, res, next) => {
 // Apply API key authentication to protected routes
 console.log("Enabling API key authentication for protected routes");
 app.use('/detections', apiKeyAuth);
+// Only protect the GET tokens route for notifications
+app.use('/notifications/tokens', apiKeyAuth);
 
 // Register protected routes AFTER applying API key middleware
 app.use('/detections', detectionRoutes);
+// Register notifications routes
+app.use('/notifications', notificationRoutes);
 
 // Root route - public for health checks
 app.get('/', (req, res) => {
@@ -76,6 +81,11 @@ app.get('/', (req, res) => {
         register: "/auth/register",
         login: "/auth/login",
         me: "/auth/me (requires authentication)"
+      },
+      notifications: {
+        registerToken: "/notifications/register-token",
+        removeToken: "/notifications/remove-token",
+        listTokens: "/notifications/tokens (requires authentication)"
       }
     }
   });
