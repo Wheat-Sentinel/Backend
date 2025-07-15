@@ -17,6 +17,8 @@ import cv2  # Added OpenCV import
 import numpy as np  # Added for image conversion
 from dotenv import load_dotenv
 from expo_notifications import send_disease_detection_notification
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Load environment variables from .env file
 load_dotenv()
@@ -64,6 +66,9 @@ MIN_DETECTION_INTERVAL = 10  # 10 seconds between any disease detections
 
 # Initialize YOLO model
 model = YOLO(MODEL_PATH)
+
+# Create a thread pool for handling async operations
+thread_pool = ThreadPoolExecutor(max_workers=4)
 
 # GPS FUNCTIONALITY
 def get_local_ip():
@@ -226,36 +231,7 @@ def gps_listener():
     finally:
         s.close()
 
-def test_gps_connection(test_data=None):
-    """
-    Test GPS connection and data parsing.
-    Can be used to verify that GPS data is being properly received and parsed.
-    
-    Args:
-        test_data (str, optional): Test data to parse. If None, uses the latest received data.
-        
-    Returns:
-        bool: True if GPS connection is working, False otherwise
-    """
-    if test_data:
-        print(f"Testing GPS parsing with provided data: {test_data}")
-        result = parse_gps_data(test_data)
-        if result:
-            lat, lon = result
-            print(f"✓ Successfully parsed GPS test data: Lat {lat}, Long {lon}")
-            return True
-        else:
-            print("✗ Failed to parse GPS test data")
-            return False
-    else:
-        # Check if we have any GPS data
-        lat, lon = get_latest_gps_coordinates()
-        if lat is not None and lon is not None:
-            print(f"✓ GPS connection is working: Latest coordinates Lat {lat}, Long {lon}")
-            return True
-        else:
-            print("✗ No GPS data available. Check GPS connection or try sending test data.")
-            return False
+
 
 # IMAGE PROCESSING AND DETECTION FUNCTIONALITY
 def upload_image(image_bytes, file_name):
@@ -454,12 +430,22 @@ def detect_wheat_disease(img: Image.Image) -> Image.Image:
     else:
         return img
 
+def process_detection_async(img, disease_name, confidence):
+    """
+    Wrapper function to process detection in a separate thread
+    """
+    # Submit the task to the thread pool
+    thread_pool.submit(process_detection, img, disease_name, confidence)
+    
+    # Return immediately to avoid blocking the video capture loop
+    return True
+
 def start_video_capture():
     """
     Start capturing video from the camera and process it in real time,
     showing live detections with bounding boxes.
     """
-    global video_running
+    global video_running, last_detection_time
 
     cap = cv2.VideoCapture(2)
 
@@ -484,13 +470,60 @@ def start_video_capture():
         # Convert OpenCV BGR frame to PIL Image (RGB)
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-        # Run detection (assumes it returns PIL image with boxes drawn)
-        result_img = detect_wheat_disease(img)
+        # Run YOLO model prediction directly here instead of using detect_wheat_disease
+        # This allows us to filter results before drawing boxes
+        results = model.predict(
+            source=img,
+            show_labels=False,  # We'll handle labels manually
+            show_conf=False,    # We'll handle confidence display manually
+            imgsz=640,
+            verbose=False       # Silence the print messages
+        )
 
-        # Convert back to OpenCV BGR frame
-        result_frame = cv2.cvtColor(np.array(result_img), cv2.COLOR_RGB2BGR)
+        # Start with the original frame
+        result_frame = frame.copy()
+        
+        # Only process detections that meet the threshold
+        if results and len(results[0].boxes) > 0:
+            boxes = results[0].boxes
+            has_high_conf_detection = False
+            
+            for detection in boxes.data:
+                if len(detection) >= 6:  # Ensure we have class, confidence values
+                    confidence = float(detection[4])  # Confidence score
+                    class_id = int(detection[5])      # Class ID
+                    
+                    if confidence >= CONFIDENCE_THRESHOLD:
+                        has_high_conf_detection = True
+                        class_name = results[0].names.get(class_id, f"Class {class_id}")
+                        disease_name = f"Wheat {class_name}"
+                        
+                        # Draw bounding box for high confidence detection only
+                        x1, y1, x2, y2 = map(int, detection[:4])
+                        cv2.rectangle(result_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        
+                        # Add label with class name and confidence
+                        label = f"{disease_name}: {confidence:.2f}"
+                        cv2.putText(result_frame, label, (x1, y1-10), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        
+                        # Process detection if it meets timing criteria
+                        current_time = time.time()
+                        time_since_last_detection = current_time - last_detection_time
+                        
+                        if time_since_last_detection >= MIN_DETECTION_INTERVAL:
+                            last_detection_time = current_time
+                            print(f"Processing detection: {disease_name} with {confidence:.2f} confidence")
+                            
+                            # Convert current frame with boxes to PIL for processing
+                            result_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
+                            # Use the async version to prevent freezing
+                            process_detection_async(result_img, disease_name, confidence)
+                            
+                            # Only process one detection per frame to reduce server load
+                            break
 
-        # Show result in a window
+        # Show result in a window - whether detection was found or not
         cv2.imshow('Wheat Disease Detection - Live', result_frame)
 
         # Quit on 'q' key
@@ -516,13 +549,8 @@ if __name__ == "__main__":
     print("Starting GPS listener thread...")
     gps_thread = threading.Thread(target=gps_listener, daemon=True)
     gps_thread.start()
-    
     # Start video capture in the main thread
     print("Starting video capture in main thread...")
     start_video_capture()
     
-else:
-    # When imported as a module, still start the GPS thread
-    print("Starting GPS listener thread...")
-    gps_thread = threading.Thread(target=gps_listener, daemon=True)
-    gps_thread.start()
+    
