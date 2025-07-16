@@ -2,7 +2,7 @@
  * Detection model for wheat disease detection
  * Handles data validation, storage and retrieval operations
  */
-const { getCollection } = require('../config/database');
+const { getCollection } = require("../config/database");
 
 class Detection {
   /**
@@ -13,15 +13,24 @@ class Detection {
   static async create(detectionData) {
     try {
       // Check for required fields
-      const requiredFields = ['disease', 'confidence', 'timestamp', 'zone_id', 'device_id', 'image_url',"latitude", "longitude"];
+      const requiredFields = [
+        "disease",
+        "confidence",
+        "timestamp",
+        "zone_id",
+        "device_id",
+        "image_url",
+        "latitude",
+        "longitude",
+      ];
       for (const field of requiredFields) {
         if (!detectionData[field]) {
           throw new Error(`Missing required field: ${field}`);
         }
       }
-      
+
       const detectionsCollection = await getCollection("detections");
-      
+
       // Prepare detection document for storage
       const detectionDocument = {
         disease: detectionData.disease,
@@ -34,17 +43,17 @@ class Detection {
         latitude: detectionData.latitude,
         longitude: detectionData.longitude,
       };
-      
+
       // Insert into database
       const result = await detectionsCollection.insertOne(detectionDocument);
-      
+
       console.log(`   - Saved to MongoDB with ID: ${result.insertedId}`);
       console.log(`   - Image URL from Supabase: ${detectionData.image_url}`);
-      
+
       // Return the created object with its ID
-      return { 
+      return {
         id: result.insertedId,
-        ...detectionDocument
+        ...detectionDocument,
       };
     } catch (error) {
       console.error(`Error creating detection: ${error.message}`);
@@ -53,27 +62,36 @@ class Detection {
   }
 
   /**
-   * Get all detections from the database
-   * @returns {Promise<Array>} Array of detection objects
+   * Get all detections from the database, returning only sector, timestamp and disease
+   * @returns {Promise<Array>} Array of detection objects with limited fields
    */
   static async getAll() {
     try {
       const detectionsCollection = await getCollection("detections");
-      
-      // Get all detections from the database
-      const mongoDetections = await detectionsCollection.find({}).toArray();
-      
-      // Format the detections for API response
-      return mongoDetections.map(detection => {
-        const formatted = { ...detection };
-        if (formatted._id) {
-          formatted.id = formatted._id.toString();
-          delete formatted._id;
-        }
-        if (formatted.created_at && formatted.created_at instanceof Date) {
-          formatted.created_at = formatted.created_at.toISOString();
-        }
-        return formatted;
+
+      // Get all detections from the database with only the needed fields
+      const mongoDetections = await detectionsCollection
+        .find(
+          {},
+          {
+            projection: {
+              _id: 1,
+              zone_id: 1, // sector
+              timestamp: 1, // timestamp
+              disease: 1, // disease
+            },
+          }
+        )
+        .toArray();
+
+      // Format the detections for API response with only the required fields
+      return mongoDetections.map((detection) => {
+        return {
+          id: detection._id.toString(),
+          sector: detection.zone_id, // Renaming zone_id to sector
+          timestamp: detection.timestamp,
+          disease: detection.disease,
+        };
       });
     } catch (error) {
       console.error(`Error getting detections: ${error.message}`);
@@ -88,22 +106,31 @@ class Detection {
    */
   static async getById(id) {
     try {
+      const { ObjectId } = require("mongodb");
       const detectionsCollection = await getCollection("detections");
-      
-      // Find the detection by ID
-      const detection = await detectionsCollection.findOne({ _id: id });
-      
+
+      let objectId;
+      try {
+        objectId = new ObjectId(id);
+      } catch (error) {
+        console.error(`Invalid ObjectId format: ${id}`);
+        return null;
+      }
+
+      // Find the detection by ID using the ObjectId
+      const detection = await detectionsCollection.findOne({ _id: objectId });
+
       if (!detection) return null;
-      
+
       // Format the detection
       const formatted = { ...detection };
       formatted.id = formatted._id.toString();
       delete formatted._id;
-      
+
       if (formatted.created_at && formatted.created_at instanceof Date) {
         formatted.created_at = formatted.created_at.toISOString();
       }
-      
+
       return formatted;
     } catch (error) {
       console.error(`Error getting detection by ID: ${error.message}`);
@@ -119,12 +146,12 @@ class Detection {
   static async getByFilter(filter = {}) {
     try {
       const detectionsCollection = await getCollection("detections");
-      
+
       // Find detections matching the filter
       const detections = await detectionsCollection.find(filter).toArray();
-      
+
       // Format the detections
-      return detections.map(detection => {
+      return detections.map((detection) => {
         const formatted = { ...detection };
         if (formatted._id) {
           formatted.id = formatted._id.toString();

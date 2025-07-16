@@ -315,9 +315,14 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
         else:
             print(f"GPS not available, using default coordinates: Lat {latitude}, Long {longitude}")
         
+        cleaned_disease_name = disease_name
+        if disease_name.lower().startswith('wheat wheat'):
+            cleaned_disease_name = disease_name[6:]
+            
+        
         # Prepare simplified payload - always includes default coordinates
         payload = {
-            "disease": disease_name,
+            "disease": cleaned_disease_name,
             "confidence": confidence,
             "timestamp": timestamp,
             "zone_id": ZONE_ID,
@@ -327,7 +332,7 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
             "longitude": longitude
         }
         
-        print(f"Detection payload ready: {disease_name} with {confidence:.2f} confidence")
+        print(f"Detection payload ready: {cleaned_disease_name} with {confidence:.2f} confidence")
         
         # Send POST request to Node.js API backend with authentication
         try:
@@ -356,7 +361,7 @@ def process_detection(img: Image.Image, disease_name: str, confidence: float):
             response = requests.post(DETECTIONS_URL, json=payload, headers=headers, timeout=30)
             
             if response.status_code == 200:
-                print(f"Successfully sent detection to API: {disease_name} ({confidence:.2f})")
+                print(f"Successfully sent detection to API: {cleaned_disease_name} ({confidence:.2f})")
                 return True
             else:
                 print(f"Failed to send detection to API. Status code: {response.status_code}")
@@ -447,7 +452,7 @@ def start_video_capture():
     """
     global video_running, last_detection_time
 
-    cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(1)
 
   # Windows DirectShow backend  # Use 0 if your default webcam is index 0
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
@@ -552,5 +557,4 @@ if __name__ == "__main__":
     # Start video capture in the main thread
     print("Starting video capture in main thread...")
     start_video_capture()
-    
-    
+
