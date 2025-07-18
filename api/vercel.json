@@ -12,10 +12,6 @@
       "src": "/(.*)",
       "dest": "/server.js"
     }
-  ],
-  "env": {
-    "API_KEY": "qyNcb2GuLcbI0XzXBW2c05Ixyyx64C1EekuxNj0rCots3ojjMOW7Qs1AanX0l6BVVyNE4FbYgX90ppbGYywoTC9F2egXNCcgzcIY1KNAxgOnVKn9j6jiyHby2XtdqmMp",
-    "MONGO_URI": "mongodb+srv://seifeldinamr862:seifezzeinA1@wheat-detection-project.nfqjldv.mongodb.net/?retryWrites=true&w=majority&appName=wheat-detection-project",
-    "JWT_SECRET": "2ab47dda00c04afd3e8df09ff0027b0c"
-  }
+  ]
+
 }
