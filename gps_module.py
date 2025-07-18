@@ -1,3 +1,7 @@
+"""
+GPS functionality module for wheat disease detection application.
+Handles GPS data acquisition and parsing.
+"""
 import socket as soc
 import threading
 import time
@@ -172,44 +176,10 @@ def gps_listener():
     finally:
         s.close()
 
-def test_gps_connection(test_data=None):
+def start_gps_thread():
     """
-    Test GPS connection and data parsing.
-    Can be used to verify that GPS data is being properly received and parsed.
-    
-    Args:
-        test_data (str, optional): Test data to parse. If None, uses the latest received data.
-        
-    Returns:
-        bool: True if GPS connection is working, False otherwise
+    Start the GPS listener in a separate thread.
     """
-    if test_data:
-        print(f"Testing GPS parsing with provided data: {test_data}")
-        result = parse_gps_data(test_data)
-        if result:
-            lat, lon = result
-            print(f"✓ Successfully parsed GPS test data: Lat {lat}, Long {lon}")
-            return True
-        else:
-            print("✗ Failed to parse GPS test data")
-            return False
-    else:
-        # Check if we have any GPS data
-        lat, lon = get_latest_gps_coordinates()
-        if lat is not None and lon is not None:
-            print(f"✓ GPS connection is working: Latest coordinates Lat {lat}, Long {lon}")
-            return True
-        else:
-            print("✗ No GPS data available. Check GPS connection or try sending test data.")
-            return False
-
-# Start the GPS listener thread when the module is imported
-gps_thread = threading.Thread(target=gps_listener, daemon=True)
-gps_thread.start()
-
-# If this module is run directly, just run the GPS listener in the main thread
-if __name__ == "__main__":
-    try:
-        gps_listener()
-    except KeyboardInterrupt:
-        print("GPS listener stopped")
+    gps_thread = threading.Thread(target=gps_listener, daemon=True)
+    gps_thread.start()
+    return gps_thread
