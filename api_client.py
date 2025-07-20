@@ -49,7 +49,7 @@ def upload_image(image_bytes, file_name):
         print(f"Error uploading to Supabase: {str(e)}")
         raise
 
-def process_detection(img, disease_name, confidence):
+def send_detection(img, disease_name, confidence):
     """
     Send detection data to Node.js API when confidence exceeds threshold.
     Upload image to Supabase and send only the image URL to the API.
