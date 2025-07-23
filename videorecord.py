@@ -45,8 +45,8 @@ if __name__ == "__main__":
     parser.add_argument("--source", type=str, required=True, help="Path to the source video file")
     parser.add_argument("--output", type=str, default="output.mp4", help="Path for the output video file")
     parser.add_argument("--model", type=str, default="models/detection.pt", help="Path to the YOLO model file")
-    parser.add_argument("--conf", type=float, default=0.3, help="Confidence threshold for detections")
-    parser.add_argument("--iou", type=float, default=0.7, help="IoU threshold for NMS")
+    parser.add_argument("--conf", type=float, default=0.7, help="Confidence threshold for detections")
+    parser.add_argument("--iou", type=float, default=0.5, help="IoU threshold for NMS")
     
     args = parser.parse_args()
     
