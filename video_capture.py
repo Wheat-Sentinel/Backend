@@ -67,7 +67,7 @@ def start_video_capture():
             print(f"Detected disease: {detected_disease} with {detected_confidence:.2f} confidence")
             
             # Send the detection with the highest confidence
-            #send_detection_async(result_img, detected_disease, detected_confidence)
+            send_detection_async(result_img, detected_disease, detected_confidence)
 
         # Show result in a window
         cv2.imshow('Wheat Disease Detection - Live', result_frame)
@@ -184,7 +184,7 @@ def start_delayed_video_capture(delay_seconds=2):
                     detection_count += 1
                     
                     # Send the detection to the API
-                    #send_detection_async(result_img, detected_disease, detected_confidence)
+                    send_detection_async(result_img, detected_disease, detected_confidence)
                 
                 # Add frame info and detection count to the frame
                 cv2.putText(result_frame, f"Frame: {frame_count}", 
