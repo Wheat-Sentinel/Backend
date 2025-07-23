@@ -6,8 +6,6 @@ Main entry point for the wheat disease detection system.
 import argparse
 import gps_module
 import video_capture
-from image_processing import process_video_frame
-from api_client import send_detection
 from video_prerecorded import process_video_file
 
 

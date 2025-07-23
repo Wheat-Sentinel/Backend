@@ -11,7 +11,6 @@ import traceback
 
 import config
 import gps_module
-from expo_notifications import send_disease_detection_notification
 
 def upload_image(image_bytes, file_name):
     """
