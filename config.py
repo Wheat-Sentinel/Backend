@@ -14,7 +14,7 @@ CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.7'))
 # Check if the model is a segmentation model based on the filename
 IS_SEGMENTATION_MODEL = False
 if MODEL_PATH:
-    if 'segementation.pt' in MODEL_PATH or 'segmentation.pt' in MODEL_PATH or 'segment' in MODEL_PATH.lower():
+    if 'segmentation.pt' in MODEL_PATH or 'segmentation.onnx' in MODEL_PATH or 'segment' in MODEL_PATH.lower():
         IS_SEGMENTATION_MODEL = True
 
 # Debug print to help identify the issue

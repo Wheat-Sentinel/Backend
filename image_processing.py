@@ -19,7 +19,7 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Using device: {DEVICE}")
 
 # Load the model to the appropriate device
-model = YOLO(config.MODEL_PATH).to(DEVICE)
+model = YOLO(config.MODEL_PATH)
 
 
 # Define colors for different classes - using a colorful palette
