@@ -6,28 +6,12 @@ import cv2
 import numpy as np
 import threading
 import time
-from PIL import Image
 
 import config
 import image_processing
 
 # Global variable to control video capture thread
 video_running = False
-last_detection_time = 0
-from concurrent.futures import ThreadPoolExecutor
-thread_pool = ThreadPoolExecutor(max_workers=4)
-
-def send_detection_async(img, disease_name, confidence):
-    """
-    Wrapper function to process detection in a separate thread
-    """
-   
-    from api_client import send_detection
-    
-    # Submit the task to the thread pool
-    thread_pool.submit(send_detection, img, disease_name, confidence)
-    
-    return True
 
 def start_video_capture():
     """
@@ -55,20 +39,8 @@ def start_video_capture():
             print("ERROR: Could not read frame")
             break
 
-        # Process the frame using our modular function - directly
-        # instead of using thread_pool for this CPU-intensive task
-        result_frame, detected_disease, detected_confidence = image_processing.process_video_frame(frame)
-
-        # If a disease was detected with sufficient confidence, send it for processing
-        if detected_disease and detected_confidence > 0:
-            # Convert result frame to PIL Image for processing
-            result_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
-            
-            print(f"Detected disease: {detected_disease} with {detected_confidence:.2f} confidence")
-            
-            # Send the detection with the highest confidence
-            #send_detection_async(result_img, detected_disease, detected_confidence)
-
+        # Process the frame using our modular function
+        result_frame = image_processing.process_video_frame(frame)
         # Show result in a window
         cv2.imshow('Wheat Disease Detection - Live', result_frame)
 
@@ -173,18 +145,16 @@ def start_delayed_video_capture(delay_seconds=2):
                 next_frame_time = current_time + frame_time
                 
                 # Process the frame to detect diseases
-                result_frame, detected_disease, detected_confidence = image_processing.process_video_frame(process_frame)
+                result_frame, detected_disease, detected_confidence, objects_to_send = image_processing.process_video_frame(process_frame)
                 
-                # If a disease was detected with sufficient confidence, send it to the API
+                # Display info about any detections (API calls are handled in image_processing)
                 if detected_disease and detected_confidence > 0:
-                    # Convert result frame to PIL Image for processing
-                    result_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
-                    
-                    print(f"Detected disease: {detected_disease} with {detected_confidence:.2f} confidence")
+                    print(f"Displayed detection: {detected_disease} with {detected_confidence:.2f} confidence")
                     detection_count += 1
-                    
-                    # Send the detection to the API
-                    send_detection_async(result_img, detected_disease, detected_confidence)
+                
+                # Show detection count if any new objects were processed
+                if objects_to_send:
+                    print(f"Processed {len(objects_to_send)} new detections for API")
                 
                 # Add frame info and detection count to the frame
                 cv2.putText(result_frame, f"Frame: {frame_count}", 

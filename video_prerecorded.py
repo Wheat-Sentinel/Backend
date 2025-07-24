@@ -90,7 +90,7 @@ def process_video_file(video_path):
         frame_idx += 1
         
         # Process the frame to detect diseases
-        result_frame, detected_disease, detected_confidence = process_video_frame(frame)
+        result_frame, detected_disease, detected_confidence, objects_to_send = process_video_frame(frame)
         
         # If a disease was detected with sufficient confidence, send it to the API
         if detected_disease and detected_confidence > 0:
