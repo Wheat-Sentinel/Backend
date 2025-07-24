@@ -84,10 +84,15 @@ def process_video_frame(frame):
             if len(detection) >= 6:  # Ensure we have class, confidence values
                 confidence = float(detection[4])  # Confidence score
                 class_id = int(detection[5])      # Class ID
+                class_name = results[0].names.get(class_id, f"Class {class_id}")
+                
+                # Skip "notobject" class predictions
+                if class_name.lower() == "notobject":
+                    continue
                 
                 if confidence >= config.CONFIDENCE_THRESHOLD and confidence > highest_confidence:
                     highest_confidence = confidence
-                    highest_confidence_disease = results[0].names.get(class_id, f"Class {class_id}")
+                    highest_confidence_disease = class_name
                     highest_confidence_index = i
         
         # Draw all detections for visualization but only return the highest confidence one
@@ -95,9 +100,13 @@ def process_video_frame(frame):
             if len(detection) >= 6:  # Ensure we have class, confidence values
                 confidence = float(detection[4])  # Confidence score
                 class_id = int(detection[5])      # Class ID
+                class_name = results[0].names.get(class_id, f"Class {class_id}")
+                
+                # Skip "notobject" class predictions
+                if class_name.lower() == "notobject":
+                    continue
                 
                 if confidence >= config.CONFIDENCE_THRESHOLD:
-                    class_name = results[0].names.get(class_id, f"Class {class_id}")
                     disease_name = f"Wheat {class_name}"
                     color = COLORS[class_id % len(COLORS)]  # Assign color based on class ID
                     

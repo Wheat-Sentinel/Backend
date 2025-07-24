@@ -28,9 +28,19 @@ def process_video_with_yolo(source_path, output_path, model_path, conf_threshold
     for frame in sv.get_video_frames_generator(source_path):
         results = model(frame, conf=conf_threshold, iou=iou_threshold)[0]
         detections = sv.Detections.from_ultralytics(results)
+        
+        # Filter out "notobject" class detections
+        if len(detections) > 0:
+            mask = []
+            for class_id in detections.class_id:
+                class_name = model.names[class_id].lower()
+                mask.append(class_name != "notobject")
+            
+            if any(mask):
+                detections = detections[np.array(mask)]
 
         labels = [
-    f"{model.model.names[c]} {conf:.2f}"
+    f"{model.names[c]} {conf:.2f}"
     for _, conf, c in zip(detections.xyxy, detections.confidence, detections.class_id)]
         annotated = box_annotator.annotate(scene=frame.copy(), detections=detections)
         annotated = label_annotator.annotate(scene=annotated, detections=detections, labels=labels)
@@ -44,8 +54,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a video with YOLO object detection")
     parser.add_argument("--source", type=str, required=True, help="Path to the source video file")
     parser.add_argument("--output", type=str, default="output.mp4", help="Path for the output video file")
-    parser.add_argument("--model", type=str, default="models/detection.pt", help="Path to the YOLO model file")
-    parser.add_argument("--conf", type=float, default=0.7, help="Confidence threshold for detections")
+    parser.add_argument("--model", type=str, default="models/finetune_detection.onnx", help="Path to the YOLO model file")
+    parser.add_argument("--conf", type=float, default=0.6, help="Confidence threshold for detections")
     parser.add_argument("--iou", type=float, default=0.5, help="IoU threshold for NMS")
     
     args = parser.parse_args()

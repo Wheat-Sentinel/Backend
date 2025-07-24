@@ -67,7 +67,7 @@ def start_video_capture():
             print(f"Detected disease: {detected_disease} with {detected_confidence:.2f} confidence")
             
             # Send the detection with the highest confidence
-            send_detection_async(result_img, detected_disease, detected_confidence)
+            #send_detection_async(result_img, detected_disease, detected_confidence)
 
         # Show result in a window
         cv2.imshow('Wheat Disease Detection - Live', result_frame)
