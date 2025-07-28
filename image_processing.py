@@ -189,36 +189,6 @@ def process_video_frame(frame):
         highest_confidence = 0.0
         highest_confidence_disease = None # List to store objects that should be sent to backend
         
-        # Process tracked objects
-        for i in range(len(tracks)):
-            if tracks.tracker_id[i] is None:  # Skip untracked detections
-                continue
-                
-            track_id = tracks.tracker_id[i]
-            confidence = tracks.confidence[i]
-            class_id = tracks.class_id[i]
-            class_name = results[0].names.get(class_id, f"Class {class_id}")
-            
-            # Get display ID for consistent visualization
-            display_id = get_display_id(track_id)
-            
-            # Check if this track ID is new and should be sent to API
-            if track_id not in sent_track_ids:
-                sent_track_ids.add(track_id)
-                
-                # Send detection to API asynchronously
-                disease_name = f"Wheat {class_name}"
-                print(f"Processing new detection: Display ID:{display_id} (Track ID:{int(track_id)}) {disease_name} with {float(confidence):.2f} confidence")
-                
-                # Convert current frame to PIL Image for API
-                result_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
-                send_detection_async(result_img, disease_name, float(confidence))
-            
-            # Track highest confidence for return value
-            if float(confidence) > highest_confidence:
-                highest_confidence = float(confidence)
-                highest_confidence_disease = class_name
-        
         # Draw all tracked detections for visualization using Supervision annotators
         if len(tracks) > 0:
             # Create labels for each track
@@ -274,6 +244,31 @@ def process_video_frame(frame):
                         scene=result_frame,
                         detections=detections_with_masks
                     )
+        
+        # Send new detections to API with annotated frame
+        for i in range(len(tracks)):
+            if tracks.tracker_id[i] is None:  # Skip untracked detections
+                continue
+                
+            track_id = tracks.tracker_id[i]
+            confidence = tracks.confidence[i]
+            class_id = tracks.class_id[i]
+            class_name = results[0].names.get(class_id, f"Class {class_id}")
+            
+            # Get display ID for consistent visualization
+            display_id = get_display_id(track_id)
+            
+            # Check if this track ID is new and should be sent to API
+            if track_id not in sent_track_ids:
+                sent_track_ids.add(track_id)
+                
+                # Send detection to API asynchronously with annotated frame
+                disease_name = f"Wheat {class_name}"
+                print(f"Processing new detection: Display ID:{display_id} (Track ID:{int(track_id)}) {disease_name} with {float(confidence):.2f} confidence")
+                
+                # Convert annotated frame to PIL Image for API
+                annotated_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
+                send_detection_async(annotated_img, disease_name, float(confidence))
         
        
     
