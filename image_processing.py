@@ -15,8 +15,6 @@ import config
 
 # Global variables for ByteTracker
 sent_track_ids = set()  # Set to track which track IDs have been sent to API
-display_id_mapping = {}  # Maps internal track IDs to consecutive display IDs
-next_display_id = 1  # Counter for consecutive display IDs
 
 # Thread pool for async API calls
 thread_pool = ThreadPoolExecutor(max_workers=4)
@@ -57,44 +55,6 @@ COLORS = [
     (0, 128, 0),    # Dark green
     (0, 0, 128)     # Dark red
 ]
-
-
-def get_display_id(track_id):
-    """
-    Get or create a consecutive display ID for a track ID.
-    
-    Args:
-        track_id: The internal ByteTracker ID
-        
-    Returns:
-        int: A consecutive display ID for visualization
-    """
-    global display_id_mapping, next_display_id
-    
-    if track_id not in display_id_mapping:
-        display_id_mapping[track_id] = next_display_id
-        next_display_id += 1
-    
-    return display_id_mapping[track_id]
-
-
-def cleanup_lost_tracks(active_track_ids):
-    """
-    Clean up display ID mappings for tracks that are no longer active.
-    
-    Args:
-        active_track_ids: Set of currently active track IDs
-    """
-    global display_id_mapping
-    
-    # Remove mappings for tracks that are no longer active
-    lost_tracks = []
-    for track_id in display_id_mapping.keys():
-        if track_id not in active_track_ids:
-            lost_tracks.append(track_id)
-    
-    for track_id in lost_tracks:
-        del display_id_mapping[track_id]
 
 
 def send_detection_async(img, disease_name, confidence):
@@ -177,15 +137,6 @@ def process_video_frame(frame):
         # Update tracker with filtered detections
         tracks = tracker.update_with_detections(filtered_detections)
         
-        # Get active track IDs for cleanup
-        active_track_ids = set()
-        for i in range(len(tracks)):
-            if tracks.tracker_id[i] is not None:
-                active_track_ids.add(tracks.tracker_id[i])
-        
-        # Clean up display ID mappings for lost tracks
-        cleanup_lost_tracks(active_track_ids)
-        
         highest_confidence = 0.0
         highest_confidence_disease = None # List to store objects that should be sent to backend
         
@@ -199,20 +150,17 @@ def process_video_frame(frame):
             class_id = tracks.class_id[i]
             class_name = results[0].names.get(class_id, f"Class {class_id}")
             
-            # Get display ID for consistent visualization
-            display_id = get_display_id(track_id)
-            
             # Check if this track ID is new and should be sent to API
             if track_id not in sent_track_ids:
                 sent_track_ids.add(track_id)
                 
                 # Send detection to API asynchronously
-                disease_name = f"Wheat {class_name}"
-                print(f"Processing new detection: Display ID:{display_id} (Track ID:{int(track_id)}) {disease_name} with {float(confidence):.2f} confidence")
+                disease_name = class_name
+                print(f"Processing new detection: Track ID:{int(track_id)} {disease_name} with {float(confidence):.2f} confidence")
                 
                 # Convert current frame to PIL Image for API
                 result_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
-                send_detection_async(result_img, disease_name, float(confidence))
+                #send_detection_async(result_img, disease_name, float(confidence))
             
             # Track highest confidence for return value
             if float(confidence) > highest_confidence:
@@ -234,13 +182,10 @@ def process_video_frame(frame):
                 class_id = tracks.class_id[i]
                 class_name = results[0].names.get(class_id, f"Class {class_id}")
                 
-                disease_name = f"Wheat {class_name}"
+                disease_name = class_name
                 
-                # Get display ID for consistent visualization
-                display_id = get_display_id(track_id)
-                
-                # Create label with class name, confidence, and display ID
-                label = f"ID:{display_id} {disease_name}: {float(confidence):.2f}"
+                # Create label with class name, confidence, and track ID
+                label = f"ID:{int(track_id)} {disease_name}: {float(confidence):.2f}"
                 labels.append(label)
             
             # Apply annotations using Supervision with default color scheme
