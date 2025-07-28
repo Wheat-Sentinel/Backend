@@ -203,16 +203,13 @@ def process_video_frame(frame):
             class_id = tracks.class_id[i]
             class_name = results[0].names.get(class_id, f"Class {class_id}")
             
-            # Get display ID for consistent visualization
-            display_id = get_display_id(track_id)
-            
             # Check if this track ID is new and should be sent to API
             if track_id not in sent_track_ids:
                 sent_track_ids.add(track_id)
                 
                 # Send detection to API asynchronously with annotated frame
-                disease_name = f"Wheat {class_name}"
-                print(f"Processing new detection: Display ID:{display_id} (Track ID:{int(track_id)}) {disease_name} with {float(confidence):.2f} confidence")
+                disease_name = class_name
+                print(f"Processing new detection: Track ID:{int(track_id)} {disease_name} with {float(confidence):.2f} confidence")
                 
                 # Convert annotated frame to PIL Image for API
                 annotated_img = Image.fromarray(cv2.cvtColor(result_frame, cv2.COLOR_BGR2RGB))
