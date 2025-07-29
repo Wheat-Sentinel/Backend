@@ -38,7 +38,7 @@ STORAGE_BUCKET_NAME = os.getenv('STORAGE_BUCKET_NAME')
 ENABLE_PUSH_NOTIFICATIONS = os.getenv('ENABLE_PUSH_NOTIFICATIONS', 'true').lower() == 'true'
 
 # Video capture configuration
-CAMERA_ID = 1  
+CAMERA_ID = 2  
 FRAME_WIDTH = int(os.getenv('FRAME_WIDTH', '640'))
 FRAME_HEIGHT = int(os.getenv('FRAME_HEIGHT', '480'))
 FPS = int(os.getenv('FPS', '30'))
